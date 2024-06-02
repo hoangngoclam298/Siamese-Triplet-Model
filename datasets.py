@@ -66,7 +66,7 @@ def fixed_image_standardization(image_tensor):
     processed_tensor = (image_tensor - 127.5) / 128.0
     return processed_tensor
 
-class CustomDataset(Dataset):
+class SiameseDataset(Dataset):
     def __init__(self, data_dir, transform=None, train=True):
         self.data_dir = data_dir
         self.transform = transform
@@ -133,3 +133,67 @@ class CustomDataset(Dataset):
             img1 = self.transform(img1)
             img2 = self.transform(img2)
         return (img1, img2), target
+    
+    
+class TripletDataset(Dataset):
+    def __init__(self, data_dir, transform=None, train=True):
+        self.data_dir = data_dir
+        self.transform = transform
+        self.train = train
+
+        self.image_paths = []
+        self.labels = []
+
+        for label in os.listdir(data_dir):
+            label_dir = os.path.join(data_dir, label)
+            if os.path.isdir(label_dir):
+                for image_name in os.listdir(label_dir):
+                    image_path = os.path.join(label_dir, image_name)
+                    self.image_paths.append(image_path)
+                    self.labels.append(int(label))  # assuming labels are integers
+
+        self.labels = np.array(self.labels)
+        self.labels_set = set(self.labels)
+        self.label_to_indices = {label: np.where(self.labels == label)[0]
+                                 for label in self.labels_set}
+
+        if not self.train:
+            random_state = np.random.RandomState(29)
+
+            self.test_triplets = [[i,
+                                   random_state.choice(self.label_to_indices[self.labels[i]]),
+                                   random_state.choice(self.label_to_indices[
+                                       np.random.choice(list(self.labels_set - set([self.labels[i]])))
+                                   ])
+                                  ]
+                                 for i in range(len(self.image_paths))]
+
+    def __len__(self):
+        return len(self.image_paths)
+
+    def __getitem__(self, index):
+        if self.train:
+            img1_path = self.image_paths[index]
+            label1 = self.labels[index]
+            positive_index = index
+            while positive_index == index:
+                positive_index = np.random.choice(self.label_to_indices[label1])
+            negative_label = np.random.choice(list(self.labels_set - set([label1])))
+            negative_index = np.random.choice(self.label_to_indices[negative_label])
+            img2_path = self.image_paths[positive_index]
+            img3_path = self.image_paths[negative_index]
+        else:
+            img1_path = self.image_paths[self.test_triplets[index][0]]
+            img2_path = self.image_paths[self.test_triplets[index][1]]
+            img3_path = self.image_paths[self.test_triplets[index][2]]
+
+        img1 = Image.open(img1_path).convert('RGB')
+        img2 = Image.open(img2_path).convert('RGB')
+        img3 = Image.open(img3_path).convert('RGB')
+
+        if self.transform is not None:
+            img1 = self.transform(img1)
+            img2 = self.transform(img2)
+            img3 = self.transform(img3)
+
+        return (img1, img2, img3), []
