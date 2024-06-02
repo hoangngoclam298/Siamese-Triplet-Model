@@ -4,7 +4,7 @@ from tqdm import tqdm
 
 
 def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs, cuda, log_interval, metrics=[],
-        start_epoch=0):
+        start_epoch=0, save_best_loss=False, path_save=''):
     """
     Loaders, model, loss function and metrics should work together for a given task,
     i.e. The model should be able to process data output of loaders,
@@ -14,6 +14,9 @@ def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs
     Siamese network: Siamese loader, siamese model, contrastive loss
     Online triplet learning: batch loader, embedding model, online triplet loss
     """
+    best_loss = 1000
+    best_model = None
+
     for epoch in range(0, start_epoch):
         scheduler.step()
 
@@ -29,14 +32,18 @@ def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs
 
         val_loss, metrics = test_epoch(val_loader, model, loss_fn, cuda, metrics)
         val_loss /= len(val_loader)
-
+        if save_best_loss:
+            if val_loss < best_loss:
+                best_loss = val_loss
+                best_model = model.state_dict().copy()
         message += '\nEpoch: {}/{}. Validation set: Average loss: {:.4f}'.format(epoch + 1, n_epochs,
                                                                                  val_loss)
         for metric in metrics:
             message += '\t{}: {}'.format(metric.name(), metric.value())
 
         print(message)
-
+    if save_best_loss:
+        torch.save(best_model, path_save)
 
 def train_epoch(train_loader, model, loss_fn, optimizer, cuda, log_interval, metrics):
     for metric in metrics:
