@@ -192,7 +192,7 @@ class EmbeddingNet(nn.Module):
             initialized. (default: {None})
         dropout_prob {float} -- Dropout probability. (default: {0.6})
     """
-    def __init__(self):
+    def __init__(self, len_embedding = 2):
         super(EmbeddingNet, self).__init__()
 
         # Define layers
@@ -234,7 +234,7 @@ class EmbeddingNet(nn.Module):
         self.block8 = Block8(noReLU=True)
         self.avgpool_1a = nn.AdaptiveAvgPool2d(1)
         self.dropout = nn.Dropout(0.6)
-        self.last_linear = nn.Linear(1792, 2, bias=False)
+        self.last_linear = nn.Linear(1792, len_embedding, bias=False)
 
     def forward(self, x):
         """Calculate embeddings or logits given a batch of input image tensors.
