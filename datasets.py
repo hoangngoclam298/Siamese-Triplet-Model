@@ -274,7 +274,7 @@ class SiameseDatasetConcat(Dataset):
         return (img1, img2, img3, img4), target
     
     
-class TripletDataset(Dataset):
+class TripletDatasetConcat(Dataset):
     def __init__(self, data_dir1, data_dir2, transform=None, train=True):
         self.data_dir1 = data_dir1
         self.data_dir2 = data_dir2
