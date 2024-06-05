@@ -293,7 +293,11 @@ class TripletDatasetConcat(Dataset):
                     image_path2 = os.path.join(label_dir2, image_name)
                     self.image_paths.append((image_path1, image_path2))
                     self.labels.append(int(label))  # assuming labels are integers
-
+                    
+        self.labels = np.array(self.labels)
+        self.labels_set = set(self.labels)
+        self.label_to_indices = {label: np.where(self.labels == label)[0]
+                                 for label in self.labels_set}
         if not self.train:
             random_state = np.random.RandomState(29)
 
