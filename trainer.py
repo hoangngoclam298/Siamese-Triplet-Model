@@ -1,10 +1,12 @@
 import torch
 import numpy as np
 from tqdm import tqdm
+from sklearn.metrics import roc_curve, auc
+import torch.nn.functional as F
 
 
 def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs, cuda, log_interval, metrics=[],
-        start_epoch=0, save_best_loss=False, path_save=''):
+        start_epoch=0, save_best_loss=False, path_save='', num_check_roc = -1):
     """
     Loaders, model, loss function and metrics should work together for a given task,
     i.e. The model should be able to process data output of loaders,
@@ -42,8 +44,17 @@ def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs
             message += '\t{}: {}'.format(metric.name(), metric.value())
 
         print(message)
+        if num_check_roc != -1:
+            if (epoch + 1) % num_check_roc == 0:
+                thresholds_dis, roc_auc_dis, thresholds_cos, roc_auc_cos = check_ROC(train_loader, model, cuda)
+                print('\n---Epoch: {}/{}. Train set: \nDistance:\tThreshold: {:.4f}\t ROC: {:.4f}\nCosine similarity\tThreshold: {:.4f}\t ROC: {:.4f}'
+                    .format(epoch + 1, n_epochs, thresholds_dis, roc_auc_dis, thresholds_cos, roc_auc_cos))
+                thresholds_dis, roc_auc_dis, thresholds_cos, roc_auc_cos = check_ROC(val_loader, model, cuda)
+                print('\n---Epoch: {}/{}. Train set: \nDistance:\tThreshold: {:.4f}\t ROC: {:.4f}\nCosine similarity\tThreshold: {:.4f}\t ROC: {:.4f}'
+                    .format(epoch + 1, n_epochs, thresholds_dis, roc_auc_dis, thresholds_cos, roc_auc_cos))
     if save_best_loss:
         torch.save(best_model, path_save)
+
 
 def train_epoch(train_loader, model, loss_fn, optimizer, cuda, log_interval, metrics):
     for metric in metrics:
@@ -130,3 +141,53 @@ def test_epoch(val_loader, model, loss_fn, cuda, metrics):
                 metric(outputs, target, loss_outputs)
 
     return val_loss, metrics
+
+def check_ROC(val_loader, model, cuda):
+    with torch.no_grad():
+        model.eval()
+        outputs_list = []
+
+        for batch in val_loader:
+            images, ids = batch  # Giả sử batch trả về (ảnh, nhãn)
+            images = images.to(cuda)
+
+            outputs = model(images)
+            
+            for i in range(outputs.size(0)):
+                outputs_list.append((ids[i].item(), outputs[i].cpu().numpy()))  # Lưu ID và output
+
+    scores_dis = []
+    labels_dis = []
+    scores_cos = []
+    labels_cos = []
+
+    for i in tqdm(range(len(outputs_list))):
+        for j in range(i + 1, len(outputs_list)):
+            id1, tensor1 = outputs_list[i]
+            id2, tensor2 = outputs_list[j]
+
+            # Chuyển đổi numpy array về tensor để tính toán
+            tensor1 = torch.tensor(tensor1)
+            tensor2 = torch.tensor(tensor2)
+
+            # Tính cosine similarity
+            score_dis = F.pairwise_distance(tensor1, tensor2).item()
+            score_cos = F.cosine_similarity(tensor1, tensor2).item()
+
+            # Lưu độ tương đồng và nhãn
+            scores_dis.append(score_dis)
+            labels_dis.append(0 if id1 == id2 else 1)
+            scores_cos.append(score_cos)
+            labels_cos.append(1 if id1 == id2 else 0)
+
+    y_true = np.array(labels_dis)
+    y_scores = np.array(scores_dis)
+    fpr, tpr, thresholds_dis = roc_curve(y_true, y_scores)
+    roc_auc_dis = auc(fpr, tpr)
+
+    y_true = np.array(labels_cos)
+    y_scores = np.array(scores_dis)
+    fpr, tpr, thresholds_cos = roc_curve(y_true, y_scores)
+    roc_auc_cos = auc(fpr, tpr)
+
+    return thresholds_dis, roc_auc_dis, thresholds_cos, roc_auc_cos
