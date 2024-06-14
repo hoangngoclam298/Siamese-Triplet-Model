@@ -47,10 +47,10 @@ def fit(train_loader, val_loader, model, loss_fn, optimizer, scheduler, n_epochs
         if num_epoch_roc != -1:
             if (epoch + 2) % num_epoch_roc == 0:
                 roc_auc_dis, roc_auc_cos = check_ROC(train_loader_image, model, cuda)
-                print('\n---Epoch: {}/{}. Train set: \nDistance ROC: {:.4f}\tCosine similarity ROC: {:.4f}'
+                print('---Epoch: {}/{}. Train set: Distance ROC: {:.4f}\tCosine similarity ROC: {:.4f}'
                     .format(epoch + 1, n_epochs, roc_auc_dis, roc_auc_cos))
                 roc_auc_dis, roc_auc_cos = check_ROC(val_loader_image, model, cuda)
-                print('\n---Epoch: {}/{}. Validation set: \nDistance ROC: {:.4f}\tCosine similarity ROC: {:.4f}'
+                print('---Epoch: {}/{}. Validation set: Distance ROC: {:.4f}\tCosine similarity ROC: {:.4f}'
                     .format(epoch + 1, n_epochs, roc_auc_dis, roc_auc_cos))
     if save_best_loss:
         torch.save(best_model, path_save)
