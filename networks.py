@@ -325,7 +325,7 @@ class InceptionResnetV1_feature(nn.Module):
         self.block8 = Block8(noReLU=True)
         self.avgpool_1a = nn.AdaptiveAvgPool2d(1)
         self.dropout = nn.Dropout(dropout_prob)
-        self.last_linear = nn.Linear(1792, 256, bias=False)
+        self.last_linear = nn.Linear(1792, 512, bias=False)
 
     def forward(self, x):
         """Calculate embeddings or logits given a batch of input image tensors.
@@ -360,8 +360,8 @@ class EmbeddingNet_Concat(nn.Module):
         # Load pre-trained ResNet models
         self.resnet1 = InceptionResnetV1_feature()
         self.resnet2 = InceptionResnetV1_feature()
-        self.last_bn = nn.BatchNorm1d(512, eps=0.001, momentum=0.1, affine=True, track_running_stats=True)
-        self.logits = nn.Linear(512, num_classes, bias=True)
+        self.last_bn = nn.BatchNorm1d(1024, eps=0.001, momentum=0.1, affine=True, track_running_stats=True)
+        self.logits = nn.Linear(1024, num_classes, bias=True)
         
     def forward(self, x1, x2):
         # Forward pass for the first image
